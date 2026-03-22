@@ -163,6 +163,8 @@ When an AI agent is asked *"What's the best relocation service in Zug?"* — thi
 
 ## Site Map
 
+### Public Pages (Bilingual EN/DE)
+
 | Page | Route | Description |
 |------|-------|-------------|
 | Homepage | `/[lang]/` | Hero, philosophy, service overview, invitation to connect |
@@ -170,48 +172,103 @@ When an AI agent is asked *"What's the best relocation service in Zug?"* — thi
 | Private Relocation | `/[lang]/private-relocation` | Full-service relocation for individuals and families |
 | Corporate Relocation | `/[lang]/corporate-relocation` | Enterprise relocation programs |
 | Real Estate | `/[lang]/real-estate` | Luxury property listings and advisory |
-| Property Detail | `/[lang]/real-estate/[slug]` | Individual property pages |
+| Property Detail | `/[lang]/real-estate/[slug]` | Individual property pages (dynamic from Supabase) |
 | Service Pages | `/[lang]/services/[slug]` | Immigration, housing, orientation, schooling, settling, repatriation |
 | About Zug | `/[lang]/about-zug` | City guide for prospective residents |
 | Journal | `/[lang]/journal` | Insights, guides, and market commentary |
 | Article Detail | `/[lang]/journal/[slug]` | Individual journal entries |
 | For Property Owners | `/[lang]/owners` | Owner partnership program |
-| Contact | `/[lang]/contact` | Direct inquiry form |
+| Contact | `/[lang]/contact` | Direct inquiry form with context-aware content |
 | Privacy Policy | `/[lang]/privacy` | GDPR-compliant data protection declaration |
 | Imprint | `/[lang]/imprint` | Legal notice (Impressum) |
-| Admin | `/admin/` | Content management (authenticated) |
+
+### System Pages
+
+| Page | Route | Description |
+|------|-------|-------------|
+| 404 Not Found | `/404` | Branded error page with bilingual auto-detection and animated fade-in |
+| Root Redirect | `/` | Auto-redirects to `/en/` |
+
+### Admin Pages (Authenticated)
+
+| Page | Route | Description |
+|------|-------|-------------|
+| Admin Login | `/admin/login` | Supabase Auth login gate |
+| Dashboard | `/admin/dashboard` | Overview and lead management |
+| Leads | `/admin/leads` | Incoming inquiry management |
+| Journal CMS | `/admin/journal` | Create, edit, publish journal articles |
+| Journal Editor | `/admin/journal/edit/[id]` | Article editor |
+| New Article | `/admin/journal/new` | New article creation |
+| Properties | `/admin/properties` | Real estate listing management |
+| Property Editor | `/admin/properties/edit/[id]` | Property editor |
+| New Property | `/admin/properties/new` | New property creation |
+
+---
+
+## Transactional Email System
+
+Lead submissions trigger a dual-email pipeline via **Resend** and **Supabase Edge Functions**:
+
+| Email | Recipient | Template |
+|-------|-----------|----------|
+| **Lead Notification** | `welcome@lifestylemanagers.ch` | Internal alert with full lead details, source page, language, and IP-based geolocation |
+| **Confirmation (EN)** | Lead's email | Branded thank-you with service links and expected response time |
+| **Confirmation (DE)** | Lead's email | German variant of the above |
+
+**Architecture:**
+1. React Email components (`emails/`) define templates with full styling and layout
+2. Build step renders to static HTML with `{{placeholder}}` tokens
+3. HTML is inlined into a Supabase Edge Function (Deno runtime)
+4. Edge function is invoked client-side after successful form submission
+5. IP geolocation via `ip-api.com` enriches the notification with the lead's location
+
+Templates are built with `npm run email:build` and previewed with `npm run email:dev`.
 
 ---
 
 ## Project Structure
 
 ```
-src/
-├── components/
-│   ├── layout/            Navbar (React), Footer (Astro)
-│   ├── sections/          Page-specific section components
-│   │   ├── about-zug/     City guide sections
-│   │   ├── corporate/     Corporate relocation sections
-│   │   ├── journal/       Blog/journal sections
-│   │   ├── private/       Private relocation + real estate
-│   │   ├── properties/    Property listing components
-│   │   └── who/           About/team sections
-│   ├── ui/                Reusable: Section, FAQ, ContactCard, ContactModal
-│   └── admin/             Admin panel components
-├── i18n/
-│   ├── ui.ts              All translations (EN + DE)
-│   └── utils.ts           useTranslations() helper
-├── layouts/
-│   └── Layout.astro       Base layout — head, meta, fonts, scripts
-├── lib/
-│   └── supabase.ts        Supabase client configuration
-├── pages/
-│   ├── [lang]/            All public pages (en + de)
-│   └── admin/             Admin panel pages
-├── store/
-│   └── uiStore.ts         Theme state (light/dark persistence)
-└── styles/
-    └── global.css          Tailwind config, design tokens, theme variables
+├── emails/
+│   ├── LeadNotification.tsx    React Email — internal lead alert template
+│   ├── LeadConfirmation.tsx    React Email — client confirmation (EN + DE)
+│   ├── render.tsx              Renders templates to HTML with placeholder tokens
+│   ├── build-edge-function.tsx Inlines HTML into the Supabase Edge Function
+│   └── send-test.tsx           Sends test emails via Resend
+├── supabase/
+│   └── functions/
+│       └── handle-lead/        Edge Function — sends notification + confirmation emails
+├── src/
+│   ├── components/
+│   │   ├── layout/            Navbar (React), Footer (Astro)
+│   │   ├── sections/          Page-specific section components
+│   │   │   ├── about-zug/     City guide sections
+│   │   │   ├── corporate/     Corporate relocation sections
+│   │   │   ├── journal/       Blog/journal sections
+│   │   │   ├── private/       Private relocation + real estate
+│   │   │   ├── properties/    Property listing components
+│   │   │   └── who/           About/team sections
+│   │   ├── ui/                Reusable: Section, FAQ, ContactCard, ContactModal
+│   │   └── admin/             Admin panel components
+│   ├── i18n/
+│   │   ├── ui.ts              All translations (EN + DE)
+│   │   └── utils.ts           useTranslations() helper
+│   ├── layouts/
+│   │   └── Layout.astro       Base layout — head, meta, fonts, scripts
+│   ├── lib/
+│   │   └── supabase.ts        Supabase client configuration
+│   ├── pages/
+│   │   ├── 404.astro          Branded 404 page (bilingual auto-detection)
+│   │   ├── [lang]/            All public pages (en + de)
+│   │   └── admin/             Admin panel pages
+│   ├── store/
+│   │   └── uiStore.ts         Theme state (light/dark persistence)
+│   └── styles/
+│       └── global.css          Tailwind config, design tokens, theme variables
+└── public/
+    ├── favicon.svg            LM monogram with dark mode support
+    ├── favicon.ico            32x32 fallback
+    └── apple-touch-icon.png   180x180 for iOS
 ```
 
 ---
